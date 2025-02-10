@@ -50,14 +50,15 @@ function createAuthStore() {
     },
     logout: async () => {
       try {
-        await fetch('http://localhost:3000/auth/logout', {
-          credentials: 'include',
-        });
-        set({ isAuthenticated: false, isLoading: false, user: null, error: null });
-        goto('/');
+        update(state => ({ ...state, isLoading: true }));
+        window.location.href = 'http://localhost:3000/auth/logout';
       } catch (error) {
         console.error('Error during logout:', error);
-        update(state => ({ ...state, error: 'Erreur lors de la déconnexion' }));
+        update(state => ({ 
+          ...state, 
+          error: 'Erreur lors de la déconnexion',
+          isLoading: false 
+        }));
       }
     },
   };
