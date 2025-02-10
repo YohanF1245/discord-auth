@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryColumn, OneToMany, ManyToMany, JoinTable } from 'typeorm';
+import { Entity, Column, PrimaryColumn, OneToMany, ManyToMany } from 'typeorm';
 import { User } from './user.entity';
 import { Channel } from './channel.entity';
 import { Role } from './role.entity';
@@ -12,10 +12,10 @@ export class Promo {
   name!: string;
 
   @ManyToMany(() => Role, role => role.promos)
-  roles: Role[];
+  roles!: Role[];
 
   @ManyToMany(() => Channel, channel => channel.promos)
-  channels: Channel[];
+  channels!: Channel[];
 
   @OneToMany(() => User, user => user.promo)
   users!: User[];

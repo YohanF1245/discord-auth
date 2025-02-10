@@ -1,20 +1,28 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToMany, PrimaryColumn } from 'typeorm';
+import { Entity, Column, ManyToMany, PrimaryColumn, JoinTable } from 'typeorm';
 import { Promo } from './promo.entity';
 
-@Entity()
+@Entity('channels')
 export class Channel {
-  @PrimaryGeneratedColumn()
-  id: number;
-
   @PrimaryColumn({ type: 'varchar' })
-  snowflake: string;
+  snowflake!: string;
 
   @Column()
-  name: string;
+  name!: string;
 
   @Column()
-  is_public: boolean;
+  is_public!: boolean;
 
   @ManyToMany(() => Promo, promo => promo.channels)
-  promos: Promo[];
+  @JoinTable({
+    name: 'channels_promos',
+    joinColumn: {
+      name: 'channel_snowflake',
+      referencedColumnName: 'snowflake'
+    },
+    inverseJoinColumn: {
+      name: 'promo_snowflake',
+      referencedColumnName: 'snowflake'
+    }
+  })
+  promos!: Promo[];
 } 

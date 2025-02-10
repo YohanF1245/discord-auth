@@ -2,7 +2,7 @@ import { Entity, Column, ManyToMany, JoinTable, ManyToOne, JoinColumn } from 'ty
 import { Role } from './role.entity';
 import { Promo } from './promo.entity';
 
-@Entity()
+@Entity('users')
 export class User {
   @Column({ primary: true, type: 'bigint' })
   snowflake!: number;
@@ -23,7 +23,17 @@ export class User {
   status!: boolean;
 
   @ManyToMany(() => Role, { eager: true, cascade: true })
-  @JoinTable({ name: 'users_roles' })
+  @JoinTable({ 
+    name: 'users_roles',
+    joinColumn: {
+      name: 'user_snowflake',
+      referencedColumnName: 'snowflake'
+    },
+    inverseJoinColumn: {
+      name: 'role_snowflake',
+      referencedColumnName: 'snowflake'
+    }
+  })
   roles!: Role[];
 
   @ManyToOne(() => Promo, promo => promo.users)

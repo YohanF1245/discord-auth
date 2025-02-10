@@ -1,17 +1,32 @@
-import { Entity, Column, PrimaryColumn, ManyToMany } from 'typeorm';
+import { Entity, Column, PrimaryColumn, ManyToMany, JoinTable } from 'typeorm';
 import { Promo } from './promo.entity';
+import { UserRole } from '../common/dto/role.dto';
 
 @Entity('roles')
 export class Role {
   @PrimaryColumn({ type: 'bigint' })
-  snowflake: string;
+  snowflake!: string;
 
   @Column({ type: 'varchar' })
-  nom: string;
+  nom!: string;
 
-  @Column({ type: 'varchar' })
-  type: 'admin' | 'formateur' | 'charge_projet' | 'etudiant';
+  @Column({
+    type: 'enum',
+    enum: UserRole,
+  })
+  type!: UserRole;
 
   @ManyToMany(() => Promo, promo => promo.roles)
-  promos: Promo[];
+  @JoinTable({
+    name: 'roles_promos',
+    joinColumn: {
+      name: 'role_snowflake',
+      referencedColumnName: 'snowflake'
+    },
+    inverseJoinColumn: {
+      name: 'promo_snowflake',
+      referencedColumnName: 'snowflake'
+    }
+  })
+  promos!: Promo[];
 } 
