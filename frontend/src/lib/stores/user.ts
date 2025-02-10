@@ -98,18 +98,18 @@ export const deleteAccount = async () => {
   }
 };
 
-type UpdateProfileData = {
+interface UpdateProfileData {
   firstName: string;
   lastName: string;
   email: string;
   promoSnowflake: string | null;
-};
+}
 
-type ProfileState = {
+interface ProfileState {
   isUpdating: boolean;
   error: string | null;
   success: string | null;
-};
+}
 
 function createProfileStore() {
   const { subscribe, set, update } = writable<ProfileState>({
@@ -120,11 +120,13 @@ function createProfileStore() {
 
   return {
     subscribe,
-    updateProfile: async (data: UpdateProfileData) => {
+    
+    async updateProfile(data: UpdateProfileData) {
       update(state => ({ ...state, isUpdating: true, error: null, success: null }));
+      
       try {
-        const response = await fetch('http://localhost:3000/users/profile', {
-          method: 'PUT',
+        const response = await fetch('http://localhost:3000/users/me', {
+          method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -132,37 +134,32 @@ function createProfileStore() {
           body: JSON.stringify(data),
         });
 
-        if (response.ok) {
-          const updatedUser = await response.json();
-          auth.setUser(updatedUser);
-          update(state => ({ 
-            ...state, 
-            isUpdating: false, 
-            success: 'Profil mis à jour avec succès',
-            error: null 
-          }));
-        } else {
-          const errorData = await response.json();
-          update(state => ({ 
-            ...state, 
-            isUpdating: false,
-            error: errorData.message || 'Erreur lors de la mise à jour du profil',
-            success: null
-          }));
+        if (!response.ok) {
+          throw new Error('Erreur lors de la mise à jour du profil');
         }
-      } catch (error) {
-        console.error('Error updating profile:', error);
+
         update(state => ({ 
           ...state, 
           isUpdating: false,
-          error: 'Erreur lors de la mise à jour du profil',
-          success: null
+          success: 'Profil mis à jour avec succès',
+        }));
+      } catch (err) {
+        console.error('Error updating profile:', err);
+        update(state => ({ 
+          ...state, 
+          isUpdating: false,
+          error: err instanceof Error ? err.message : 'Erreur lors de la mise à jour du profil',
         }));
       }
     },
-    clearMessages: () => {
+
+    setError(message: string) {
+      update(state => ({ ...state, error: message, success: null }));
+    },
+
+    clearMessages() {
       update(state => ({ ...state, error: null, success: null }));
-    }
+    },
   };
 }
 

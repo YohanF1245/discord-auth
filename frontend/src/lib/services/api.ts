@@ -15,17 +15,19 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}) {
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers,
+    credentials: 'include',
   });
 
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  return { data: Array.isArray(data) ? data : data.data || data };
 }
 
 export async function getCurrentUser() {
-  return fetchWithAuth('/api/users/me');
+  return fetchWithAuth('/users/me');
 }
 
 export async function updateProfile(data: {
@@ -34,34 +36,34 @@ export async function updateProfile(data: {
   email: string;
   promo_snowflake: string;
 }) {
-  return fetchWithAuth('/api/users/profile', {
+  return fetchWithAuth('/users/profile', {
     method: 'PUT',
     body: JSON.stringify(data),
   });
 }
 
 export async function getAllUsers() {
-  return fetchWithAuth('/api/users');
+  return fetchWithAuth('/users');
 }
 
 export async function validateUser(snowflake: string) {
-  return fetchWithAuth(`/api/users/${snowflake}/validate`, {
+  return fetchWithAuth(`/users/${snowflake}/validate`, {
     method: 'PUT',
   });
 }
 
 export async function invalidateUser(snowflake: string) {
-  return fetchWithAuth(`/api/users/${snowflake}/invalidate`, {
+  return fetchWithAuth(`/users/${snowflake}/invalidate`, {
     method: 'PUT',
   });
 }
 
 export async function getPromos() {
-  return fetchWithAuth('/api/promos');
+  return fetchWithAuth('/promos');
 }
 
 export async function getPromo(snowflake: string) {
-  return fetchWithAuth(`/api/promos/${snowflake}`);
+  return fetchWithAuth(`/promos/${snowflake}`);
 }
 
 export async function createPromo(data: {
@@ -70,7 +72,7 @@ export async function createPromo(data: {
   roles_snowflakes: string[];
   channels_snowflakes: string[];
 }) {
-  return fetchWithAuth('/api/promos', {
+  return fetchWithAuth('/promos', {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -84,24 +86,24 @@ export async function updatePromo(
     channels_snowflakes: string[];
   },
 ) {
-  return fetchWithAuth(`/api/promos/${snowflake}`, {
+  return fetchWithAuth(`/promos/${snowflake}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
 }
 
 export async function deletePromo(snowflake: string) {
-  return fetchWithAuth(`/api/promos/${snowflake}`, {
+  return fetchWithAuth(`/promos/${snowflake}`, {
     method: 'DELETE',
   });
 }
 
 export async function getChannels() {
-  return fetchWithAuth('/api/channels');
+  return fetchWithAuth('/channels');
 }
 
 export async function getChannel(snowflake: string) {
-  return fetchWithAuth(`/api/channels/${snowflake}`);
+  return fetchWithAuth(`/channels/${snowflake}`);
 }
 
 export async function createChannel(data: {
@@ -110,7 +112,7 @@ export async function createChannel(data: {
   is_public: boolean;
   promos_snowflakes: string[];
 }) {
-  return fetchWithAuth('/api/channels', {
+  return fetchWithAuth('/channels', {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -124,14 +126,14 @@ export async function updateChannel(
     promos_snowflakes: string[];
   },
 ) {
-  return fetchWithAuth(`/api/channels/${snowflake}`, {
+  return fetchWithAuth(`/channels/${snowflake}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
 }
 
 export async function deleteChannel(snowflake: string) {
-  return fetchWithAuth(`/api/channels/${snowflake}`, {
+  return fetchWithAuth(`/channels/${snowflake}`, {
     method: 'DELETE',
   });
 } 
