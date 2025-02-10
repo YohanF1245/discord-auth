@@ -27,9 +27,20 @@ export class AuthController {
       res.cookie('jwt', access_token, {
         httpOnly: true,
         secure: this.configService.get('NODE_ENV') === 'production',
-        sameSite: 'lax',
+        sameSite: 'strict',
         maxAge: 24 * 60 * 60 * 1000, // 1 day
         path: '/',
+        domain: 'localhost',
+      });
+
+      // Set a non-HttpOnly cookie to indicate auth state to the frontend
+      res.cookie('isAuthenticated', 'true', {
+        httpOnly: false,
+        secure: this.configService.get('NODE_ENV') === 'production',
+        sameSite: 'strict',
+        maxAge: 24 * 60 * 60 * 1000, // 1 day
+        path: '/',
+        domain: 'localhost',
       });
 
       res.redirect('http://localhost:5173/profile');
@@ -44,8 +55,16 @@ export class AuthController {
     res.clearCookie('jwt', {
       httpOnly: true,
       secure: this.configService.get('NODE_ENV') === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict',
       path: '/',
+      domain: 'localhost',
+    });
+    res.clearCookie('isAuthenticated', {
+      httpOnly: false,
+      secure: this.configService.get('NODE_ENV') === 'production',
+      sameSite: 'strict',
+      path: '/',
+      domain: 'localhost',
     });
     res.redirect('http://localhost:5173/');
   }
