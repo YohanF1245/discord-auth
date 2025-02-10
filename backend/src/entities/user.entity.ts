@@ -1,27 +1,32 @@
-import { Entity, Column, PrimaryColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, ManyToMany, JoinTable, ManyToOne, JoinColumn } from 'typeorm';
+import { Role } from './role.entity';
 import { Promo } from './promo.entity';
 
-@Entity('users')
+@Entity()
 export class User {
-  @PrimaryColumn({ type: 'bigint' })
-  snowflake: string;
+  @Column({ primary: true, type: 'bigint' })
+  snowflake!: number;
 
-  @Column({ type: 'varchar' })
-  discord_username: string;
+  @Column({ length: 255 })
+  discordUsername!: string;
 
-  @Column({ type: 'varchar' })
-  nom: string;
+  @Column({ nullable: true, length: 100 })
+  firstName?: string;
 
-  @Column({ type: 'varchar' })
-  prenom: string;
+  @Column({ nullable: true, length: 100 })
+  lastName?: string;
 
-  @Column({ type: 'varchar' })
-  email: string;
+  @Column({ nullable: true, length: 255 })
+  email?: string;
 
-  @Column({ type: 'boolean', default: false })
-  status: boolean;
+  @Column({ default: false })
+  status!: boolean;
+
+  @ManyToMany(() => Role, { eager: true, cascade: true })
+  @JoinTable({ name: 'users_roles' })
+  roles!: Role[];
 
   @ManyToOne(() => Promo, promo => promo.users)
   @JoinColumn({ name: 'promo_snowflake' })
-  promo: Promo;
+  promo?: Promo;
 } 

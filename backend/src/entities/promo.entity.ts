@@ -6,27 +6,17 @@ import { Role } from './role.entity';
 @Entity('promos')
 export class Promo {
   @PrimaryColumn({ type: 'bigint' })
-  snowflake: string;
+  snowflake!: number;
 
-  @Column({ type: 'varchar' })
-  nom: string;
+  @Column()
+  name!: string;
 
-  @OneToMany(() => User, user => user.promo)
-  users: User[];
+  @ManyToMany(() => Role, role => role.promos)
+  roles: Role[];
 
-  @ManyToMany(() => Channel)
-  @JoinTable({
-    name: 'promo_channels',
-    joinColumn: { name: 'promo_snowflake', referencedColumnName: 'snowflake' },
-    inverseJoinColumn: { name: 'channel_snowflake', referencedColumnName: 'snowflake' }
-  })
+  @ManyToMany(() => Channel, channel => channel.promos)
   channels: Channel[];
 
-  @ManyToMany(() => Role)
-  @JoinTable({
-    name: 'promo_roles',
-    joinColumn: { name: 'promo_snowflake', referencedColumnName: 'snowflake' },
-    inverseJoinColumn: { name: 'role_snowflake', referencedColumnName: 'snowflake' }
-  })
-  roles: Role[];
+  @OneToMany(() => User, user => user.promo)
+  users!: User[];
 } 

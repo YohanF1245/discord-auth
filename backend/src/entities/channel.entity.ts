@@ -1,15 +1,18 @@
-import { Entity, Column, PrimaryColumn, ManyToMany } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToMany, PrimaryColumn } from 'typeorm';
 import { Promo } from './promo.entity';
 
-@Entity('channels')
+@Entity()
 export class Channel {
-  @PrimaryColumn({ type: 'bigint' })
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @PrimaryColumn({ type: 'varchar' })
   snowflake: string;
 
-  @Column({ type: 'varchar' })
-  nom: string;
+  @Column()
+  name: string;
 
-  @Column({ type: 'boolean', default: false })
+  @Column()
   is_public: boolean;
 
   @ManyToMany(() => Promo, promo => promo.channels)
