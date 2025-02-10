@@ -3,6 +3,12 @@
   import '../app.css';
   import { auth } from '$lib/stores/auth';
   import { page } from '$app/stores';
+  import { checkAuth } from '$lib/stores/auth';
+  import { onMount } from 'svelte';
+
+  onMount(async () => {
+    await checkAuth();
+  });
 </script>
 
 <div class="min-h-screen bg-gray-50">

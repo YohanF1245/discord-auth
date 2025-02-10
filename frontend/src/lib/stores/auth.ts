@@ -25,31 +25,46 @@ function createAuthStore() {
   const { subscribe, set, update } = writable<{
     isAuthenticated: boolean;
     user: User | null;
-    token: string | null;
   }>({
     isAuthenticated: false,
     user: null,
-    token: browser ? localStorage.getItem('token') : null,
   });
 
   return {
     subscribe,
-    setToken: (token: string) => {
-      if (browser) {
-        localStorage.setItem('token', token);
-        update(state => ({ ...state, token, isAuthenticated: true }));
-      }
-    },
     setUser: (user: User) => {
-      update(state => ({ ...state, user }));
+      update(state => ({ ...state, user, isAuthenticated: true }));
     },
-    logout: () => {
-      if (browser) {
-        localStorage.removeItem('token');
-        set({ isAuthenticated: false, user: null, token: null });
+    logout: async () => {
+      try {
+        await fetch('http://localhost:3000/auth/logout', {
+          credentials: 'include',
+        });
+      } catch (error) {
+        console.error('Error during logout:', error);
       }
+      set({ isAuthenticated: false, user: null });
     },
   };
 }
 
-export const auth = createAuthStore(); 
+export const auth = createAuthStore();
+
+export async function checkAuth() {
+  try {
+    const response = await fetch('http://localhost:3000/auth/check', {
+      credentials: 'include',
+    });
+    
+    if (response.ok) {
+      const user = await response.json();
+      auth.set({ isAuthenticated: true, user });
+      return true;
+    }
+  } catch (error) {
+    console.error('Error checking auth:', error);
+  }
+  
+  auth.set({ isAuthenticated: false, user: null });
+  return false;
+} 
