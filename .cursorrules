@@ -5,7 +5,7 @@ frontend : sveltekit
 orm : typeorm
 un dossier pour le backend, un dossier pour le frontend
 tu es un expert en sveltekit et nestjs et postgresql
-
+les routes ne sont PAS préfixées par /api
 tu t'assures de relire tout le code avant de modifier ou d'ajouter du code
 tu t'assures de bien comprendre le code avant de modifier ou d'ajouter du code
 
