@@ -77,8 +77,10 @@ export async function checkAuth() {
     });
     
     if (response.ok) {
-      const user = await response.json();
+      const data = await response.json();
+      const user = data.data || data;
       auth.setUser(user);
+      console.log('User status from server:', user.status);
       return true;
     } else {
       auth.set({ isAuthenticated: false, isLoading: false, user: null, error: null });

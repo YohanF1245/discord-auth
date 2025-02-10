@@ -27,18 +27,28 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}) {
 }
 
 export async function getCurrentUser() {
-  return fetchWithAuth('/users/me');
+  const response = await fetchWithAuth('/users/me');
+  if (response && response.data) {
+    console.log('Current user data:', response.data);
+    return response;
+  }
+  return null;
 }
 
 export async function updateProfile(data: {
-  nom: string;
-  prenom: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  promo_snowflake: string;
+  promoSnowflake: string | null;
 }) {
+  const payload = {
+    ...data,
+    promoSnowflake: data.promoSnowflake ? Number(data.promoSnowflake) : undefined,
+  };
+
   return fetchWithAuth('/users/profile', {
     method: 'PUT',
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
 }
 

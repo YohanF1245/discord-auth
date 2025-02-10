@@ -2,9 +2,17 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { auth } from '$lib/stores/auth';
-  import { promoStore } from '$lib/stores/promo';
-  import { profileStore } from '$lib/stores/user';
+  import { getPromos, updateProfile, getCurrentUser } from '$lib/services/api';
   import { goto } from '$app/navigation';
+  import { checkAuth } from '$lib/stores/auth';
+
+  let loading = false;
+  let error: string | null = null;
+  let success: string | null = null;
+  let promos: Array<{ snowflake: string; name: string }> = [];
+  let userStatus = false;
+  let statusText = '';
+  let statusClass = '';
 
   let formData = {
     firstName: $auth.user?.firstName || '',
@@ -17,12 +25,57 @@
   let showDeleteModal = false;
   let isDeleting = false;
 
+  async function updateUserStatus() {
+    try {
+      const response = await getCurrentUser();
+      if (response && response.data) {
+        auth.setUser(response.data);
+        userStatus = response.data.status;
+        statusText = userStatus ? 'Validé' : 'En attente de validation';
+        statusClass = userStatus ? 'bg-discord-green text-white' : 'bg-yellow-400 text-gray-900';
+        console.log('Status mis à jour:', userStatus);
+      }
+    } catch (err) {
+      console.error('Erreur lors de la mise à jour du statut:', err);
+    }
+  }
+
   onMount(async () => {
-    await promoStore.fetchPromos();
+    try {
+      loading = true;
+      await updateUserStatus();
+      const promosResponse = await getPromos();
+      if (promosResponse) {
+        promos = promosResponse.data;
+      }
+    } catch (err) {
+      console.error('Error loading data:', err);
+      error = "Erreur lors du chargement des données";
+    } finally {
+      loading = false;
+    }
   });
 
   async function handleSubmit() {
-    await profileStore.updateProfile(formData);
+    try {
+      loading = true;
+      error = null;
+      success = null;
+
+      const response = await updateProfile(formData);
+      
+      if (response && response.data) {
+        await updateUserStatus();
+        success = "Profil mis à jour avec succès";
+      } else {
+        throw new Error("Réponse invalide du serveur");
+      }
+    } catch (err) {
+      console.error('Error updating profile:', err);
+      error = "Erreur lors de la mise à jour du profil";
+    } finally {
+      loading = false;
+    }
   }
 
   async function handleDeleteAccount() {
@@ -37,11 +90,10 @@
         throw new Error('Erreur lors de la suppression du compte');
       }
 
-      // Déconnexion et redirection vers la page d'accueil
       window.location.href = 'http://localhost:3000/auth/logout';
     } catch (err) {
       console.error('Error deleting account:', err);
-      profileStore.setError('Erreur lors de la suppression du compte');
+      error = 'Erreur lors de la suppression du compte';
     } finally {
       isDeleting = false;
       showDeleteModal = false;
@@ -49,10 +101,11 @@
   }
 
   // Réinitialiser les messages après 5 secondes
-  $: if ($profileStore.success || $profileStore.error) {
+  $: if (success || error) {
     if (messageTimer) clearTimeout(messageTimer);
     messageTimer = setTimeout(() => {
-      profileStore.clearMessages();
+      success = null;
+      error = null;
     }, 5000);
   }
 
@@ -74,8 +127,8 @@
             <p class="text-gray-700">Nom d'utilisateur: <span class="font-semibold">{$auth.user.discordUsername}</span></p>
             <p class="text-gray-700">
               Status: 
-              <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${$auth.user.status ? 'bg-discord-green text-white' : 'bg-yellow-400 text-gray-900'}`}>
-                {$auth.user.status ? 'Validé' : 'En attente de validation'}
+              <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}`}>
+                {statusText}
               </span>
             </p>
           </div>
@@ -126,12 +179,12 @@
             <label for="promo" class="block text-sm font-medium text-gray-700">
               Promotion
             </label>
-            {#if $promoStore.isLoading}
+            {#if loading}
               <div class="mt-1 text-sm text-gray-500">Chargement des promotions...</div>
-            {:else if $promoStore.error}
-              <div class="mt-1 text-sm text-red-600">{$promoStore.error}</div>
-            {:else if $promoStore.promos.length === 0}
-              <div class="mt-1 text-sm text-gray-500">Aucune promotion disponible pour le moment</div>
+            {:else if error}
+              <div class="mt-1 text-sm text-red-600">{error}</div>
+            {:else if promos.length === 0}
+              <div class="mt-1 text-sm text-gray-500">Aucune promotion disponible</div>
             {:else}
               <select
                 id="promo"
@@ -139,28 +192,28 @@
                 class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:ring-2 focus:ring-discord-blurple focus:border-discord-blurple"
               >
                 <option value={null}>Sélectionnez une promotion</option>
-                {#each $promoStore.promos as promo}
-                  <option value={promo.snowflake}>{promo.nom}</option>
+                {#each promos as promo}
+                  <option value={promo.snowflake}>{promo.name}</option>
                 {/each}
               </select>
             {/if}
           </div>
 
           <!-- Messages d'erreur et de succès -->
-          {#if $profileStore.error}
-            <div class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">{$profileStore.error}</div>
+          {#if error}
+            <div class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">{error}</div>
           {/if}
-          {#if $profileStore.success}
-            <div class="text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg p-3">{$profileStore.success}</div>
+          {#if success}
+            <div class="text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg p-3">{success}</div>
           {/if}
 
           <!-- Bouton de soumission -->
           <button
             type="submit"
             class="w-full flex justify-center py-3 px-4 border-2 border-discord-blurple rounded-full text-lg font-semibold text-white bg-discord-blurple hover:bg-discord-blurple-dark transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-            disabled={$profileStore.isUpdating || $promoStore.isLoading}
+            disabled={loading}
           >
-            {#if $profileStore.isUpdating}
+            {#if loading}
               <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
