@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../entities/user.entity';
 import { Promo } from '../../entities/promo.entity';
 import { Role } from '../../entities/role.entity';
+import { UpdateProfileDto } from '../../common/dto/user.dto';
+import { CreateUserDto, UpdateUserDto } from '../../common/dto/user.dto';
 
 @Injectable()
 export class UsersService {
@@ -16,47 +18,46 @@ export class UsersService {
     private readonly roleRepository: Repository<Role>,
   ) {}
 
-  async findAll(userSnowflake: string) {
-    // Vérifie si l'utilisateur est admin
-    const admin = await this.userRepository
-      .createQueryBuilder('user')
-      .leftJoinAndSelect('user.promo', 'promo')
-      .leftJoinAndSelect('promo.roles', 'role')
-      .where('user.snowflake = :snowflake', { snowflake: userSnowflake })
-      .andWhere('role.type = :type', { type: 'admin' })
-      .getOne();
+  create(createUserDto: CreateUserDto) {
+    const user = this.userRepository.create(createUserDto);
+    return this.userRepository.save(user);
+  }
 
-    if (!admin) {
-      throw new ForbiddenException('Seuls les administrateurs peuvent voir la liste des utilisateurs');
-    }
-
+  findAll() {
     return this.userRepository.find({
-      relations: ['promo', 'promo.roles'],
+      relations: ['promo'],
     });
   }
 
-  async findOne(snowflake: number): Promise<User> {
+  async findOne(snowflake: string) {
     const user = await this.userRepository.findOne({
       where: { snowflake },
-      relations: ['roles'],
+      relations: ['promo'],
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(`User with snowflake ${snowflake} not found`);
     }
 
     return user;
   }
 
+  async update(snowflake: string, updateUserDto: UpdateUserDto) {
+    const user = await this.findOne(snowflake);
+    Object.assign(user, updateUserDto);
+    return this.userRepository.save(user);
+  }
+
+  async remove(snowflake: string) {
+    const user = await this.findOne(snowflake);
+    await this.userRepository.remove(user);
+    return { message: 'Compte supprimé avec succès' };
+  }
+
   async updateProfile(
     snowflake: number,
-    data: {
-      firstName: string;
-      lastName: string;
-      email: string;
-      promoSnowflake: number;
-    },
-  ) {
+    data: UpdateProfileDto,
+  ): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { snowflake },
     });
@@ -65,61 +66,34 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    const promo = await this.promoRepository.findOne({
-      where: { snowflake: data.promoSnowflake },
-    });
+    let promo: Promo | null = null;
+    if (data.promoSnowflake) {
+      promo = await this.promoRepository.findOne({
+        where: { snowflake: data.promoSnowflake },
+      });
 
-    if (!promo) {
-      throw new NotFoundException('Promo not found');
+      if (!promo) {
+        throw new NotFoundException('Promo not found');
+      }
     }
 
     user.firstName = data.firstName;
     user.lastName = data.lastName;
     user.email = data.email;
-    user.promo = promo;
+    user.promo = promo || undefined;
 
     return this.userRepository.save(user);
   }
 
-  async validateUser(targetSnowflake: number, adminSnowflake: number) {
-    const admin = await this.userRepository.findOne({
-      where: { snowflake: adminSnowflake },
-      relations: ['promo', 'promo.roles'],
-    });
-
-    if (!admin?.promo?.roles.some(role => role.type === 'admin')) {
-      throw new ForbiddenException('Only admins can validate users');
-    }
-
-    const user = await this.findOne(targetSnowflake);
+  async validateUser(snowflake: string) {
+    const user = await this.findOne(snowflake);
     user.status = true;
     return this.userRepository.save(user);
   }
 
-  async invalidateUser(targetSnowflake: string, adminSnowflake: string) {
-    // Vérifie si l'utilisateur est admin
-    const admin = await this.userRepository
-      .createQueryBuilder('user')
-      .leftJoinAndSelect('user.promo', 'promo')
-      .leftJoinAndSelect('promo.roles', 'role')
-      .where('user.snowflake = :snowflake', { snowflake: adminSnowflake })
-      .andWhere('role.type = :type', { type: 'admin' })
-      .getOne();
-
-    if (!admin) {
-      throw new ForbiddenException('Seuls les administrateurs peuvent invalider les utilisateurs');
-    }
-
-    const user = await this.findOne(parseInt(targetSnowflake));
+  async invalidateUser(snowflake: string) {
+    const user = await this.findOne(snowflake);
     user.status = false;
     return this.userRepository.save(user);
-  }
-
-  async deleteAccount(snowflake: number) {
-    const user = await this.findOne(snowflake);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-    return this.userRepository.remove(user);
   }
 } 

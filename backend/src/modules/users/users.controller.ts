@@ -1,51 +1,69 @@
-import { Controller, Get, Put, Body, UseGuards, Req, Param, Patch, ParseIntPipe, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from './users.service';
+import { UpdateProfileDto, UserResponseDto } from '../../common/dto/user.dto';
+import { CreateUserDto } from '../../common/dto/user.dto';
+import { UpdateUserDto } from '../../common/dto/user.dto';
+import { Request } from 'express';
 
-@Controller('api/users')
-@UseGuards(AuthGuard('jwt'))
+@Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @Post()
+  create(@Body() createUserDto: CreateUserDto) {
+    return this.usersService.create(createUserDto);
+  }
+
   @Get()
-  async getAllUsers(@Req() req: any) {
-    return this.usersService.findAll(req.user.sub);
+  @UseGuards(AuthGuard('jwt-cookie'))
+  findAll() {
+    return this.usersService.findAll();
   }
 
   @Get('me')
-  async getCurrentUser(@Req() req: any) {
-    return this.usersService.findOne(req.user.sub);
-  }
-
-  @Delete('me')
-  async deleteAccount(@Req() req: any) {
-    return this.usersService.deleteAccount(req.user.sub);
-  }
-
-  @Patch('profile')
   @UseGuards(AuthGuard('jwt-cookie'))
-  async updateProfile(@Req() req, @Body() data: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    promoSnowflake: number;
-  }) {
-    return this.usersService.updateProfile(req.user.sub, data);
-  }
-
-  @Patch('validate/:snowflake')
-  @UseGuards(AuthGuard('jwt-cookie'))
-  async validateUser(@Param('snowflake', ParseIntPipe) snowflake: number, @Req() req) {
-    return this.usersService.validateUser(snowflake, req.user.sub);
-  }
-
-  @Put(':snowflake/invalidate')
-  async invalidateUser(@Param('snowflake') snowflake: string, @Req() req: any) {
-    return this.usersService.invalidateUser(snowflake, req.user.sub);
+  findMe(@Req() req: Request) {
+    return this.usersService.findOne(req.user.snowflake);
   }
 
   @Get(':snowflake')
-  async getUser(@Param('snowflake', ParseIntPipe) snowflake: number) {
+  @UseGuards(AuthGuard('jwt-cookie'))
+  findOne(@Param('snowflake') snowflake: string) {
     return this.usersService.findOne(snowflake);
+  }
+
+  @Patch('me')
+  @UseGuards(AuthGuard('jwt-cookie'))
+  update(@Req() req: Request, @Body() updateUserDto: UpdateUserDto) {
+    return this.usersService.update(req.user.snowflake, updateUserDto);
+  }
+
+  @Delete('me')
+  @UseGuards(AuthGuard('jwt-cookie'))
+  remove(@Req() req: Request) {
+    return this.usersService.remove(req.user.snowflake);
+  }
+
+  @Put('profile')
+  async updateProfile(
+    @Req() req: any,
+    @Body() data: UpdateProfileDto,
+  ): Promise<UserResponseDto> {
+    return this.usersService.updateProfile(req.user.sub, data);
+  }
+
+  @Put(':snowflake/validate')
+  async validateUser(
+    @Param('snowflake', ParseIntPipe) snowflake: number,
+  ): Promise<UserResponseDto> {
+    return this.usersService.validateUser(snowflake);
+  }
+
+  @Put(':snowflake/invalidate')
+  async invalidateUser(
+    @Param('snowflake') snowflake: string,
+  ): Promise<UserResponseDto> {
+    return this.usersService.invalidateUser(snowflake);
   }
 } 
