@@ -1,10 +1,15 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Patch, Param, Delete, UseGuards, Req, ParseIntPipe } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from './users.service';
-import { UpdateProfileDto, UserResponseDto } from '../../common/dto/user.dto';
-import { CreateUserDto } from '../../common/dto/user.dto';
-import { UpdateUserDto } from '../../common/dto/user.dto';
+import { UpdateProfileDto, UserResponseDto, CreateUserDto, UpdateUserDto } from '../../common/dto/user.dto';
 import { Request } from 'express';
+
+interface RequestWithUser extends Request {
+  user: {
+    sub: number;
+    username: string;
+  };
+}
 
 @Controller('users')
 export class UsersController {
@@ -23,8 +28,8 @@ export class UsersController {
 
   @Get('me')
   @UseGuards(AuthGuard('jwt-cookie'))
-  findMe(@Req() req: Request) {
-    return this.usersService.findOne(req.user.snowflake);
+  findMe(@Req() req: RequestWithUser) {
+    return this.usersService.findOne(String(req.user.sub));
   }
 
   @Get(':snowflake')
@@ -35,19 +40,20 @@ export class UsersController {
 
   @Patch('me')
   @UseGuards(AuthGuard('jwt-cookie'))
-  update(@Req() req: Request, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(req.user.snowflake, updateUserDto);
+  update(@Req() req: RequestWithUser, @Body() updateUserDto: UpdateUserDto) {
+    return this.usersService.update(String(req.user.sub), updateUserDto);
   }
 
   @Delete('me')
   @UseGuards(AuthGuard('jwt-cookie'))
-  remove(@Req() req: Request) {
-    return this.usersService.remove(req.user.snowflake);
+  remove(@Req() req: RequestWithUser) {
+    return this.usersService.remove(String(req.user.sub));
   }
 
   @Put('profile')
+  @UseGuards(AuthGuard('jwt-cookie'))
   async updateProfile(
-    @Req() req: any,
+    @Req() req: RequestWithUser,
     @Body() data: UpdateProfileDto,
   ): Promise<UserResponseDto> {
     return this.usersService.updateProfile(req.user.sub, data);
@@ -55,7 +61,7 @@ export class UsersController {
 
   @Put(':snowflake/validate')
   async validateUser(
-    @Param('snowflake', ParseIntPipe) snowflake: number,
+    @Param('snowflake') snowflake: string,
   ): Promise<UserResponseDto> {
     return this.usersService.validateUser(snowflake);
   }

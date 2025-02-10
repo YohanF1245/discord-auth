@@ -1,4 +1,38 @@
 import { IsString, IsNotEmpty, IsEmail, IsOptional, IsNumber, IsBoolean } from 'class-validator';
+import { Role } from '../../entities/role.entity';
+import { Promo } from '../../entities/promo.entity';
+
+export class CreateUserDto {
+  @IsNumber()
+  @IsNotEmpty()
+  snowflake!: number;
+
+  @IsString()
+  @IsNotEmpty()
+  discordUsername!: string;
+
+  @IsEmail()
+  @IsOptional()
+  email?: string;
+}
+
+export class UpdateUserDto {
+  @IsString()
+  @IsOptional()
+  firstName?: string;
+
+  @IsString()
+  @IsOptional()
+  lastName?: string;
+
+  @IsEmail()
+  @IsOptional()
+  email?: string;
+
+  @IsNumber()
+  @IsOptional()
+  promoSnowflake?: number;
+}
 
 export class UpdateProfileDto {
   @IsString()
@@ -41,8 +75,8 @@ export class UserResponseDto {
   status!: boolean;
 
   @IsOptional()
-  roles?: any[]; // TODO: Remplacer par RoleDto[]
+  roles?: Role[];
 
   @IsOptional()
-  promo?: any; // TODO: Remplacer par PromoDto
+  promo?: Promo;
 } 

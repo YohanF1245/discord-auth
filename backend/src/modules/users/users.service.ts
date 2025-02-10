@@ -4,8 +4,7 @@ import { Repository } from 'typeorm';
 import { User } from '../../entities/user.entity';
 import { Promo } from '../../entities/promo.entity';
 import { Role } from '../../entities/role.entity';
-import { UpdateProfileDto } from '../../common/dto/user.dto';
-import { CreateUserDto, UpdateUserDto } from '../../common/dto/user.dto';
+import { UpdateProfileDto, CreateUserDto, UpdateUserDto, UserResponseDto } from '../../common/dto/user.dto';
 
 @Injectable()
 export class UsersService {
@@ -25,14 +24,14 @@ export class UsersService {
 
   findAll() {
     return this.userRepository.find({
-      relations: ['promo'],
+      relations: ['promo', 'roles'],
     });
   }
 
   async findOne(snowflake: string) {
     const user = await this.userRepository.findOne({
-      where: { snowflake },
-      relations: ['promo'],
+      where: { snowflake: Number(snowflake) },
+      relations: ['promo', 'roles'],
     });
 
     if (!user) {
@@ -58,40 +57,51 @@ export class UsersService {
     snowflake: number,
     data: UpdateProfileDto,
   ): Promise<User> {
+    console.log('Updating profile for user:', snowflake);
+    console.log('Update data:', data);
+
     const user = await this.userRepository.findOne({
       where: { snowflake },
+      relations: ['roles', 'promo'],
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    let promo: Promo | null = null;
+    user.firstName = data.firstName;
+    user.lastName = data.lastName;
+    user.email = data.email;
+
     if (data.promoSnowflake) {
-      promo = await this.promoRepository.findOne({
-        where: { snowflake: data.promoSnowflake },
+      console.log('Looking for promo with snowflake:', data.promoSnowflake);
+      const promo = await this.promoRepository.findOne({
+        where: { snowflake: Number(data.promoSnowflake) },
       });
+
+      console.log('Found promo:', promo);
 
       if (!promo) {
         throw new NotFoundException('Promo not found');
       }
+
+      user.promo = promo;
+    } else {
+      user.promo = undefined;
     }
 
-    user.firstName = data.firstName;
-    user.lastName = data.lastName;
-    user.email = data.email;
-    user.promo = promo || undefined;
-
-    return this.userRepository.save(user);
+    const savedUser = await this.userRepository.save(user);
+    console.log('Saved user:', savedUser);
+    return savedUser;
   }
 
-  async validateUser(snowflake: string) {
+  async validateUser(snowflake: string): Promise<User> {
     const user = await this.findOne(snowflake);
     user.status = true;
     return this.userRepository.save(user);
   }
 
-  async invalidateUser(snowflake: string) {
+  async invalidateUser(snowflake: string): Promise<User> {
     const user = await this.findOne(snowflake);
     user.status = false;
     return this.userRepository.save(user);
