@@ -7,43 +7,45 @@ import {
   Body,
   Param,
   UseGuards,
-  Req,
-  Patch,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ChannelsService } from './channels.service';
-import { CreateChannelDto, UpdateChannelDto } from '../../dto/channel.dto';
+import { CreateChannelDto, UpdateChannelDto, ChannelResponseDto } from '../../common/dto/channel.dto';
 
-@Controller('api/channels')
-@UseGuards(AuthGuard('jwt'))
+@Controller('channels')
+@UseGuards(AuthGuard('jwt-cookie'))
 export class ChannelsController {
   constructor(private readonly channelsService: ChannelsService) {}
 
   @Get()
-  async findAll(@Req() req: any) {
-    return this.channelsService.findAll(req.user.sub);
+  async findAll(): Promise<ChannelResponseDto[]> {
+    return this.channelsService.findAll();
   }
 
   @Get(':snowflake')
-  async findOne(@Param('snowflake') snowflake: string, @Req() req: any) {
-    return this.channelsService.findOne(snowflake, req.user.sub);
+  async findOne(
+    @Param('snowflake') snowflake: string,
+  ): Promise<ChannelResponseDto> {
+    return this.channelsService.findOne(snowflake);
   }
 
   @Post()
-  async create(@Body() data: CreateChannelDto) {
+  async create(@Body() data: CreateChannelDto): Promise<ChannelResponseDto> {
     return this.channelsService.create(data);
   }
 
-  @Patch(':id')
+  @Put(':snowflake')
   async update(
-    @Param('id') id: number,
+    @Param('snowflake') snowflake: string,
     @Body() data: UpdateChannelDto,
-  ) {
-    return this.channelsService.update(id, data);
+  ): Promise<ChannelResponseDto> {
+    return this.channelsService.update(snowflake, data);
   }
 
   @Delete(':snowflake')
-  async delete(@Param('snowflake') snowflake: string, @Req() req: any) {
-    return this.channelsService.delete(snowflake, req.user.sub);
+  async delete(
+    @Param('snowflake') snowflake: string,
+  ): Promise<void> {
+    await this.channelsService.delete(snowflake);
   }
 } 

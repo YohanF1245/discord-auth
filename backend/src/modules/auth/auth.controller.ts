@@ -3,6 +3,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
+import { AuthResponseDto } from '../../common/dto/auth.dto';
+import { UserResponseDto } from '../../common/dto/user.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -19,11 +21,11 @@ export class AuthController {
 
   @Get('discord/callback')
   @UseGuards(AuthGuard('discord'))
-  async discordAuthRedirect(@Req() req, @Res() res: Response) {
+  async discordAuthRedirect(@Req() req, @Res() res: Response): Promise<void> {
     try {
       const { access_token } = await this.authService.login(req.user);
+      const frontendUrl = this.configService.get('FRONTEND_URL') ?? 'http://localhost:5173';
       
-      // Set the JWT in an HttpOnly cookie
       res.cookie('jwt', access_token, {
         httpOnly: true,
         secure: this.configService.get('NODE_ENV') === 'production',
@@ -33,7 +35,6 @@ export class AuthController {
         domain: 'localhost',
       });
 
-      // Set a non-HttpOnly cookie to indicate auth state to the frontend
       res.cookie('isAuthenticated', 'true', {
         httpOnly: false,
         secure: this.configService.get('NODE_ENV') === 'production',
@@ -43,15 +44,18 @@ export class AuthController {
         domain: 'localhost',
       });
 
-      res.redirect('http://localhost:5173/profile');
+      res.redirect(frontendUrl + '/profile');
     } catch (error) {
       console.error('Error in discordAuthRedirect:', error);
-      res.redirect('http://localhost:5173/?error=auth_failed');
+      const frontendUrl = this.configService.get('FRONTEND_URL') ?? 'http://localhost:5173';
+      res.redirect(frontendUrl + '/?error=auth_failed');
     }
   }
 
   @Get('logout')
-  async logout(@Res() res: Response) {
+  async logout(@Res() res: Response): Promise<void> {
+    const frontendUrl = this.configService.get('FRONTEND_URL') ?? 'http://localhost:5173';
+    
     res.clearCookie('jwt', {
       httpOnly: true,
       secure: this.configService.get('NODE_ENV') === 'production',
@@ -66,12 +70,12 @@ export class AuthController {
       path: '/',
       domain: 'localhost',
     });
-    res.redirect('http://localhost:5173/');
+    res.redirect(frontendUrl);
   }
 
   @Get('check')
   @UseGuards(AuthGuard('jwt-cookie'))
-  async checkAuth(@Req() req) {
+  async checkAuth(@Req() req): Promise<UserResponseDto> {
     const user = await this.authService.getUser(req.user.sub);
 
     if (!user) {
