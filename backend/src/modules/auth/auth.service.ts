@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -12,25 +12,40 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async validateUser(snowflake: string, discord_username: string, email: string) {
-    let user = await this.userRepository.findOne({ where: { snowflake } });
-
-    if (!user) {
-      user = this.userRepository.create({
-        snowflake,
-        discord_username,
-        email,
+  async validateUser(snowflake: string, discordUsername: string, email: string): Promise<User> {
+    try {
+      console.log('Validating user:', { snowflake, discordUsername, email });
+      
+      let user = await this.userRepository.findOne({ 
+        where: { snowflake: Number(snowflake) },
+        relations: ['roles', 'promo'],
       });
-      await this.userRepository.save(user);
-    }
+      console.log('Found user:', user);
+      
+      if (!user) {
+        console.log('Creating new user');
+        const newUser = this.userRepository.create({
+          snowflake: Number(snowflake),
+          discordUsername,
+          email,
+          status: false,
+          roles: [],
+        });
+        user = await this.userRepository.save(newUser);
+        console.log('User created successfully:', user);
+      }
 
-    return user;
+      return user;
+    } catch (error) {
+      console.error('Error in validateUser:', error);
+      throw new InternalServerErrorException('Failed to validate user');
+    }
   }
 
-  async login(user: any) {
+  async login(user: User) {
     const payload = { 
       sub: user.snowflake,
-      username: user.discord_username,
+      username: user.discordUsername,
       status: user.status,
     };
 
@@ -38,5 +53,12 @@ export class AuthService {
       access_token: this.jwtService.sign(payload),
       user,
     };
+  }
+
+  async getUser(snowflake: number): Promise<User | null> {
+    return this.userRepository.findOne({
+      where: { snowflake },
+      relations: ['roles', 'promo'],
+    });
   }
 } 

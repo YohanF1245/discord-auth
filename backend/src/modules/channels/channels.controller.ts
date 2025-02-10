@@ -8,9 +8,11 @@ import {
   Param,
   UseGuards,
   Req,
+  Patch,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ChannelsService } from './channels.service';
+import { CreateChannelDto, UpdateChannelDto } from '../../dto/channel.dto';
 
 @Controller('api/channels')
 @UseGuards(AuthGuard('jwt'))
@@ -28,29 +30,16 @@ export class ChannelsController {
   }
 
   @Post()
-  async create(
-    @Body() data: {
-      snowflake: string;
-      nom: string;
-      is_public: boolean;
-      promos_snowflakes: string[];
-    },
-    @Req() req: any,
-  ) {
-    return this.channelsService.create(data, req.user.sub);
+  async create(@Body() data: CreateChannelDto) {
+    return this.channelsService.create(data);
   }
 
-  @Put(':snowflake')
+  @Patch(':id')
   async update(
-    @Param('snowflake') snowflake: string,
-    @Body() data: {
-      nom: string;
-      is_public: boolean;
-      promos_snowflakes: string[];
-    },
-    @Req() req: any,
+    @Param('id') id: number,
+    @Body() data: UpdateChannelDto,
   ) {
-    return this.channelsService.update(snowflake, data, req.user.sub);
+    return this.channelsService.update(id, data);
   }
 
   @Delete(':snowflake')

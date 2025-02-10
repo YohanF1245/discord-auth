@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Body, UseGuards, Req, Param } from '@nestjs/common';
+import { Controller, Get, Put, Body, UseGuards, Req, Param, Patch, ParseIntPipe, Delete } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from './users.service';
 
@@ -17,26 +17,35 @@ export class UsersController {
     return this.usersService.findOne(req.user.sub);
   }
 
-  @Put('profile')
-  async updateProfile(
-    @Req() req: any,
-    @Body() data: {
-      nom: string;
-      prenom: string;
-      email: string;
-      promo_snowflake: string;
-    },
-  ) {
+  @Delete('me')
+  async deleteAccount(@Req() req: any) {
+    return this.usersService.deleteAccount(req.user.sub);
+  }
+
+  @Patch('profile')
+  @UseGuards(AuthGuard('jwt-cookie'))
+  async updateProfile(@Req() req, @Body() data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    promoSnowflake: number;
+  }) {
     return this.usersService.updateProfile(req.user.sub, data);
   }
 
-  @Put(':snowflake/validate')
-  async validateUser(@Param('snowflake') snowflake: string, @Req() req: any) {
+  @Patch('validate/:snowflake')
+  @UseGuards(AuthGuard('jwt-cookie'))
+  async validateUser(@Param('snowflake', ParseIntPipe) snowflake: number, @Req() req) {
     return this.usersService.validateUser(snowflake, req.user.sub);
   }
 
   @Put(':snowflake/invalidate')
   async invalidateUser(@Param('snowflake') snowflake: string, @Req() req: any) {
     return this.usersService.invalidateUser(snowflake, req.user.sub);
+  }
+
+  @Get(':snowflake')
+  async getUser(@Param('snowflake', ParseIntPipe) snowflake: number) {
+    return this.usersService.findOne(snowflake);
   }
 } 

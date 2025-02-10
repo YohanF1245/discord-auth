@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { PromosService } from './promos.service';
+import { CreatePromoDto } from '../../dto/create-promo.dto';
 
 @Controller('api/promos')
 @UseGuards(AuthGuard('jwt'))
@@ -28,23 +29,15 @@ export class PromosController {
   }
 
   @Post()
-  async create(
-    @Body() data: {
-      snowflake: string;
-      nom: string;
-      roles_snowflakes: string[];
-      channels_snowflakes: string[];
-    },
-    @Req() req: any,
-  ) {
-    return this.promosService.create(data, req.user.sub);
+  async create(@Body() data: CreatePromoDto) {
+    return this.promosService.create(data);
   }
 
   @Put(':snowflake')
   async update(
     @Param('snowflake') snowflake: string,
     @Body() data: {
-      nom: string;
+      name: string;
       roles_snowflakes: string[];
       channels_snowflakes: string[];
     },

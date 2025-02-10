@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { Channel } from '../../entities/channel.entity';
 import { User } from '../../entities/user.entity';
 import { Role } from '../../entities/role.entity';
+import { Promo } from '../../entities/promo.entity';
+import { CreateChannelDto, UpdateChannelDto } from '../../dto/channel.dto';
 
 @Injectable()
 export class ChannelsService {
@@ -14,11 +16,13 @@ export class ChannelsService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Role)
     private readonly roleRepository: Repository<Role>,
+    @InjectRepository(Promo)
+    private readonly promoRepository: Repository<Promo>,
   ) {}
 
   async findAll(userSnowflake: string) {
     const user = await this.userRepository.findOne({
-      where: { snowflake: userSnowflake },
+      where: { snowflake: Number(userSnowflake) },
       relations: ['promo', 'promo.roles'],
     });
 
@@ -46,7 +50,7 @@ export class ChannelsService {
 
   async findOne(snowflake: string, userSnowflake: string) {
     const user = await this.userRepository.findOne({
-      where: { snowflake: userSnowflake },
+      where: { snowflake: Number(userSnowflake) },
       relations: ['promo', 'promo.roles'],
     });
 
@@ -76,74 +80,22 @@ export class ChannelsService {
     return channel;
   }
 
-  async create(
-    data: {
-      snowflake: string;
-      nom: string;
-      is_public: boolean;
-      promos_snowflakes: string[];
-    },
-    userSnowflake: string,
-  ) {
-    // Vérifie si l'utilisateur est admin
-    const user = await this.userRepository
-      .createQueryBuilder('user')
-      .leftJoinAndSelect('user.promo', 'promo')
-      .leftJoinAndSelect('promo.roles', 'role')
-      .where('user.snowflake = :snowflake', { snowflake: userSnowflake })
-      .andWhere('role.type = :type', { type: 'admin' })
-      .getOne();
-
-    if (!user) {
-      throw new ForbiddenException('Seuls les administrateurs peuvent créer des channels');
-    }
-
-    const channel = this.channelRepository.create({
-      snowflake: data.snowflake,
-      nom: data.nom,
-      is_public: data.is_public,
-    });
-
-    if (data.promos_snowflakes?.length) {
-      channel.promos = await this.roleRepository.findByIds(data.promos_snowflakes);
-    }
-
+  async create(data: CreateChannelDto): Promise<Channel> {
+    const channel = new Channel();
+    channel.promos = await this.promoRepository.findByIds(data.promos_snowflakes);
     return this.channelRepository.save(channel);
   }
 
-  async update(
-    snowflake: string,
-    data: {
-      nom: string;
-      is_public: boolean;
-      promos_snowflakes: string[];
-    },
-    userSnowflake: string,
-  ) {
-    // Vérifie si l'utilisateur est admin
-    const user = await this.userRepository
-      .createQueryBuilder('user')
-      .leftJoinAndSelect('user.promo', 'promo')
-      .leftJoinAndSelect('promo.roles', 'role')
-      .where('user.snowflake = :snowflake', { snowflake: userSnowflake })
-      .andWhere('role.type = :type', { type: 'admin' })
-      .getOne();
-
-    if (!user) {
-      throw new ForbiddenException('Seuls les administrateurs peuvent modifier des channels');
+  async update(id: number, data: UpdateChannelDto): Promise<Channel> {
+    const channel = await this.channelRepository.findOne({ where: { id } });
+    if (!channel) {
+      throw new NotFoundException('Channel not found');
     }
-
-    const channel = await this.findOne(snowflake, userSnowflake);
     
-    channel.nom = data.nom;
-    channel.is_public = data.is_public;
-
-    if (data.promos_snowflakes?.length) {
-      channel.promos = await this.roleRepository.findByIds(data.promos_snowflakes);
-    } else {
-      channel.promos = [];
+    if (data.promos_snowflakes) {
+      channel.promos = await this.promoRepository.findByIds(data.promos_snowflakes);
     }
-
+    
     return this.channelRepository.save(channel);
   }
 
@@ -153,7 +105,7 @@ export class ChannelsService {
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.promo', 'promo')
       .leftJoinAndSelect('promo.roles', 'role')
-      .where('user.snowflake = :snowflake', { snowflake: userSnowflake })
+      .where('user.snowflake = :snowflake', { snowflake: Number(userSnowflake) })
       .andWhere('role.type = :type', { type: 'admin' })
       .getOne();
 
