@@ -1,6 +1,10 @@
+import { join } from 'path';
+
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./src/**/*.{html,js,svelte,ts}'],
+  content: [
+    join(__dirname, './src/**/*.{svelte,js,ts}'),
+  ],
   theme: {
     extend: {
       colors: {
