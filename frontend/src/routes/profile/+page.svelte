@@ -1,96 +1,59 @@
 <!-- frontend/src/routes/profile/+page.svelte -->
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { user, fetchUser, updateProfile, deleteAccount } from '$lib/stores/user';
-  import type { Promo } from '$lib/types/user';
-  import { goto } from '$app/navigation';
+  import { auth } from '$lib/stores/auth';
+  import { promoStore } from '$lib/stores/promo';
+  import { profileStore } from '$lib/stores/user';
 
-  let loading = true;
-  let error: string | null = null;
-  let success: string | null = null;
-  let promos: Promo[] = [];
   let formData = {
-    firstName: '',
-    lastName: '',
-    email: '',
-    promoSnowflake: 0
+    firstName: $auth.user?.firstName || '',
+    lastName: $auth.user?.lastName || '',
+    email: $auth.user?.email || '',
+    promoSnowflake: $auth.user?.promo?.snowflake || null,
   };
 
-  onMount(async () => {
-    try {
-      const userData = await fetchUser();
-      if (!userData) {
-        goto('/');
-        return;
-      }
-      
-      // Pré-remplir le formulaire avec les données existantes
-      formData = {
-        firstName: userData.firstName || '',
-        lastName: userData.lastName || '',
-        email: userData.email || '',
-        promoSnowflake: userData.promo?.snowflake || 0
-      };
+  let messageTimer: ReturnType<typeof setTimeout> | null = null;
 
-      // Charger les promos
-      const response = await fetch('http://localhost:3000/api/promos', {
-        credentials: 'include'
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch promos');
-      }
-      promos = await response.json();
-    } catch (err) {
-      error = 'Erreur lors du chargement du profil';
-      goto('/');
-    } finally {
-      loading = false;
-    }
+  onMount(async () => {
+    await promoStore.fetchPromos();
   });
 
   async function handleSubmit() {
-    try {
-      error = null;
-      success = null;
-      await updateProfile(formData);
-      success = 'Profil mis à jour avec succès';
-    } catch (err) {
-      error = 'Erreur lors de la mise à jour du profil';
-    }
+    await profileStore.updateProfile(formData);
   }
 
-  async function handleDeleteAccount() {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.')) {
-      return;
-    }
-
-    try {
-      await deleteAccount();
-      goto('/');
-    } catch (err) {
-      error = 'Erreur lors de la suppression du compte';
-    }
+  // Réinitialiser les messages après 5 secondes
+  $: if ($profileStore.success || $profileStore.error) {
+    if (messageTimer) clearTimeout(messageTimer);
+    messageTimer = setTimeout(() => {
+      profileStore.clearMessages();
+    }, 5000);
   }
+
+  onMount(() => {
+    return () => {
+      if (messageTimer) clearTimeout(messageTimer);
+    };
+  });
 </script>
 
 <div class="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
   <div class="max-w-md mx-auto bg-white rounded-lg shadow-lg overflow-hidden">
-    {#if loading}
-      <div class="p-8 text-center">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-        <p class="mt-4 text-gray-600">Chargement du profil...</p>
-      </div>
-    {:else if $user}
+    {#if $auth.user}
       <div class="p-8">
+        <!-- Informations Discord -->
         <div class="mb-8">
           <h2 class="text-2xl font-bold text-gray-900 mb-2">Profil Discord</h2>
-          <p class="text-gray-600">Nom d'utilisateur: {$user.discordUsername}</p>
-          <p class="text-gray-600">Status: {$user.status ? 'Validé' : 'En attente de validation'}</p>
+          <p class="text-gray-600">Nom d'utilisateur: {$auth.user.discordUsername}</p>
+          <p class="text-gray-600">Status: {$auth.user.status ? 'Validé' : 'En attente de validation'}</p>
         </div>
 
+        <!-- Formulaire de mise à jour -->
         <form on:submit|preventDefault={handleSubmit} class="space-y-6">
           <div>
-            <label for="firstName" class="block text-sm font-medium text-gray-700">Prénom</label>
+            <label for="firstName" class="block text-sm font-medium text-gray-700">
+              Prénom
+            </label>
             <input
               type="text"
               id="firstName"
@@ -101,7 +64,9 @@
           </div>
 
           <div>
-            <label for="lastName" class="block text-sm font-medium text-gray-700">Nom</label>
+            <label for="lastName" class="block text-sm font-medium text-gray-700">
+              Nom
+            </label>
             <input
               type="text"
               id="lastName"
@@ -112,7 +77,9 @@
           </div>
 
           <div>
-            <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+            <label for="email" class="block text-sm font-medium text-gray-700">
+              Email
+            </label>
             <input
               type="email"
               id="email"
@@ -123,44 +90,53 @@
           </div>
 
           <div>
-            <label for="promo" class="block text-sm font-medium text-gray-700">Promotion</label>
-            <select
-              id="promo"
-              bind:value={formData.promoSnowflake}
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              required
-            >
-              <option value="">Sélectionnez une promotion</option>
-              {#each promos as promo}
-                <option value={promo.snowflake}>{promo.name}</option>
-              {/each}
-            </select>
+            <label for="promo" class="block text-sm font-medium text-gray-700">
+              Promotion
+            </label>
+            {#if $promoStore.isLoading}
+              <div class="mt-1 text-sm text-gray-500">Chargement des promotions...</div>
+            {:else if $promoStore.error}
+              <div class="mt-1 text-sm text-red-500">{$promoStore.error}</div>
+            {:else if $promoStore.promos.length === 0}
+              <div class="mt-1 text-sm text-gray-500">Aucune promotion disponible pour le moment</div>
+            {:else}
+              <select
+                id="promo"
+                bind:value={formData.promoSnowflake}
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              >
+                <option value={null}>Sélectionnez une promotion</option>
+                {#each $promoStore.promos as promo}
+                  <option value={promo.snowflake}>{promo.nom}</option>
+                {/each}
+              </select>
+            {/if}
           </div>
 
-          {#if error}
-            <p class="text-red-600 text-sm">{error}</p>
+          <!-- Messages d'erreur et de succès -->
+          {#if $profileStore.error}
+            <div class="text-sm text-red-600">{$profileStore.error}</div>
+          {/if}
+          {#if $profileStore.success}
+            <div class="text-sm text-green-600">{$profileStore.success}</div>
           {/if}
 
-          {#if success}
-            <p class="text-green-600 text-sm">{success}</p>
-          {/if}
-
-          <div class="flex justify-between items-center">
-            <button
-              type="submit"
-              class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              Mettre à jour
-            </button>
-
-            <button
-              type="button"
-              on:click={handleDeleteAccount}
-              class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-            >
-              Supprimer le compte
-            </button>
-          </div>
+          <!-- Bouton de soumission -->
+          <button
+            type="submit"
+            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            disabled={$profileStore.isUpdating || $promoStore.isLoading}
+          >
+            {#if $profileStore.isUpdating}
+              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Mise à jour...
+            {:else}
+              Mettre à jour le profil
+            {/if}
+          </button>
         </form>
       </div>
     {:else}
@@ -170,7 +146,7 @@
           href="/"
           class="mt-4 inline-block bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
         >
-          Se connecter
+          Retour à l'accueil
         </a>
       </div>
     {/if}
